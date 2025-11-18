@@ -33,7 +33,7 @@ export async function getBlogPosts(): Promise<PayloadBlogPost[]> {
   try {
     const apiUrl = `${API_URL}/api/blog-posts?where[status][equals]=published&limit=100&depth=2&sort=-publishedAt`
     console.log('Fetching blog posts from:', apiUrl)
-    
+
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
@@ -44,7 +44,10 @@ export async function getBlogPosts(): Promise<PayloadBlogPost[]> {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error(`Failed to fetch blog posts: ${response.status} ${response.statusText}`, errorText)
+      console.error(
+        `Failed to fetch blog posts: ${response.status} ${response.statusText}`,
+        errorText,
+      )
       throw new Error(`Failed to fetch blog posts: ${response.status} ${response.statusText}`)
     }
 
@@ -64,17 +67,23 @@ export async function getBlogPosts(): Promise<PayloadBlogPost[]> {
         },
         cache: 'no-store',
       })
-      
+
       if (fallbackResponse.ok) {
         const fallbackData = await fallbackResponse.json()
-        console.log('Fallback fetch successful:', fallbackData.docs?.length || 0, 'posts (may include drafts)')
+        console.log(
+          'Fallback fetch successful:',
+          fallbackData.docs?.length || 0,
+          'posts (may include drafts)',
+        )
         // Return only published posts from fallback
-        return (fallbackData.docs || []).filter((post: PayloadBlogPost) => post.status === 'published')
+        return (fallbackData.docs || []).filter(
+          (post: PayloadBlogPost) => post.status === 'published',
+        )
       }
     } catch (fallbackError) {
       console.error('Fallback fetch also failed:', fallbackError)
     }
-    
+
     return []
   }
 }
@@ -84,22 +93,28 @@ export async function getBlogPosts(): Promise<PayloadBlogPost[]> {
  */
 export async function getBlogPostBySlug(slug: string): Promise<PayloadBlogPost | null> {
   try {
-    const response = await fetch(
-      `${API_URL}/api/blog-posts?where[slug][equals]=${slug}&limit=1&depth=2`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
+    const apiUrl = `${API_URL}/api/blog-posts?where[slug][equals]=${slug}&limit=1&depth=2`
+    console.log('Fetching blog post by slug:', apiUrl)
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    )
+      cache: 'no-store',
+    })
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch blog post: ${response.statusText}`)
+      const errorText = await response.text()
+      console.error(
+        `Failed to fetch blog post: ${response.status} ${response.statusText}`,
+        errorText,
+      )
+      throw new Error(`Failed to fetch blog post: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
+    console.log('Blog post fetched:', data.docs?.[0] ? 'Found' : 'Not found')
     return data.docs?.[0] || null
   } catch (error) {
     console.error('Error fetching blog post:', error)
@@ -245,7 +260,10 @@ export interface PayloadTeamMember {
  */
 export async function getTeamMembers(): Promise<PayloadTeamMember[]> {
   try {
-    const response = await fetch(`${API_URL}/api/team-members?limit=100&depth=2&sort=createdAt`, {
+    const apiUrl = `${API_URL}/api/team-members?limit=100&depth=2&sort=createdAt`
+    console.log('Fetching team members from:', apiUrl)
+
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -254,10 +272,16 @@ export async function getTeamMembers(): Promise<PayloadTeamMember[]> {
     })
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch team members: ${response.statusText}`)
+      const errorText = await response.text()
+      console.error(
+        `Failed to fetch team members: ${response.status} ${response.statusText}`,
+        errorText,
+      )
+      throw new Error(`Failed to fetch team members: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
+    console.log('Team members fetched:', data.docs?.length || 0, 'members')
     return data.docs || []
   } catch (error) {
     console.error('Error fetching team members:', error)
@@ -343,7 +367,10 @@ export interface PayloadTestimonial {
  */
 export async function getTestimonials(): Promise<PayloadTestimonial[]> {
   try {
-    const response = await fetch(`${API_URL}/api/testimonials?limit=100&depth=2&sort=order`, {
+    const apiUrl = `${API_URL}/api/testimonials?limit=100&depth=2&sort=order`
+    console.log('Fetching testimonials from:', apiUrl)
+
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -352,10 +379,16 @@ export async function getTestimonials(): Promise<PayloadTestimonial[]> {
     })
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch testimonials: ${response.statusText}`)
+      const errorText = await response.text()
+      console.error(
+        `Failed to fetch testimonials: ${response.status} ${response.statusText}`,
+        errorText,
+      )
+      throw new Error(`Failed to fetch testimonials: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
+    console.log('Testimonials fetched:', data.docs?.length || 0, 'testimonials')
     return data.docs || []
   } catch (error) {
     console.error('Error fetching testimonials:', error)
