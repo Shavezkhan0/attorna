@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { IoChevronForward } from 'react-icons/io5'
 import { MdMenu, MdClose } from 'react-icons/md'
@@ -89,22 +90,22 @@ const BottomNavbar = () => {
           <div className="flex items-center justify-between h-[80px] lg:h-[80px] md:h-[70px] h-[60px]">
             {/* Logo */}
             <div className="flex items-center">
-              <a href="/" className="flex items-center gap-2">
+              <Link href="/" className="flex items-center gap-2">
                 <div className="flex flex-col items-center">
                   <div className="text-[#b8956f] lg:text-2xl text-xl font-serif">⚖</div>
                 </div>
                 <span className="text-[#2d1f13] lg:text-sm text-xs font-semibold tracking-wider uppercase">
                   ATTORNA
                 </span>
-              </a>
+              </Link>
             </div>
 
             {/* Navigation Links */}
             <div className="hidden lg:flex items-center gap-8">
               {/* HOME */}
-              <a href="/" className={getLinkClass('/')}>
+              <Link href="/" className={getLinkClass('/')}>
                 HOME
-              </a>
+              </Link>
 
               {/* PAGES Dropdown */}
               <div
@@ -213,13 +214,13 @@ const BottomNavbar = () => {
           </div>
 
           <nav className="flex-1 px-6 py-6 space-y-4">
-            <a
+            <Link
               href="/"
               className="block text-[#2d1f13] text-sm font-medium uppercase tracking-wide hover:text-[#b8956f] transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Home
-            </a>
+            </Link>
 
             <div>
               <button
