@@ -1,14 +1,87 @@
 import { NextResponse } from 'next/server'
-import { getPayload } from 'payload'
-import config from '@payload-config'
 
 export async function GET() {
   try {
-    // Try to initialize Payload
-    const payloadConfig = await config
-    const payload = await getPayload({ config: payloadConfig })
+    // Step 1: Check environment variables
+    const hasSecret = !!process.env.PAYLOAD_SECRET
+    const hasDatabaseUri = !!process.env.DATABASE_URI
 
-    // Try to query the database
+    if (!hasSecret || !hasDatabaseUri) {
+      return NextResponse.json(
+        {
+          status: 'error',
+          message: 'Missing environment variables',
+          details: {
+            hasSecret,
+            hasDatabaseUri,
+          },
+        },
+        { status: 500 },
+      )
+    }
+
+    // Step 2: Try to import config
+    let config
+    try {
+      config = await import('@payload-config')
+    } catch (configError: any) {
+      return NextResponse.json(
+        {
+          status: 'config_import_error',
+          message: 'Failed to import Payload config',
+          error: configError?.message || 'Unknown error',
+          stack: configError?.stack,
+        },
+        { status: 500 },
+      )
+    }
+
+    // Step 3: Try to get the config (it might be a promise or direct export)
+    let payloadConfig
+    try {
+      payloadConfig = config.default || config
+      // If it's a function/promise, await it
+      if (typeof payloadConfig === 'function' || payloadConfig instanceof Promise) {
+        payloadConfig = await payloadConfig
+      }
+    } catch (configError: any) {
+      return NextResponse.json(
+        {
+          status: 'config_error',
+          message: 'Failed to resolve Payload config',
+          error: configError?.message || 'Unknown error',
+          stack: configError?.stack,
+        },
+        { status: 500 },
+      )
+    }
+
+    // Step 4: Try to initialize Payload
+    let payload
+    try {
+      const { getPayload } = await import('payload')
+      payload = await getPayload({ config: payloadConfig })
+    } catch (payloadError: any) {
+      return NextResponse.json(
+        {
+          status: 'payload_init_error',
+          message: 'Failed to initialize Payload',
+          error: payloadError?.message || 'Unknown error',
+          errorName: payloadError?.name,
+          stack: payloadError?.stack,
+          details: {
+            hasSecret,
+            hasDatabaseUri,
+            databaseUriPreview: process.env.DATABASE_URI
+              ? `${process.env.DATABASE_URI.substring(0, 30)}...`
+              : 'not set',
+          },
+        },
+        { status: 500 },
+      )
+    }
+
+    // Step 5: Try to query the database
     try {
       await payload.find({
         collection: 'users',
@@ -20,12 +93,13 @@ export async function GET() {
           status: 'database_error',
           message: 'Payload initialized but database query failed',
           error: dbError?.message || 'Unknown database error',
-          stack: process.env.NODE_ENV === 'development' ? dbError?.stack : undefined,
+          errorName: dbError?.name,
+          stack: dbError?.stack,
           details: {
-            hasSecret: !!process.env.PAYLOAD_SECRET,
-            hasDatabaseUri: !!process.env.DATABASE_URI,
+            hasSecret,
+            hasDatabaseUri,
             databaseUriPreview: process.env.DATABASE_URI
-              ? `${process.env.DATABASE_URI.substring(0, 20)}...`
+              ? `${process.env.DATABASE_URI.substring(0, 30)}...`
               : 'not set',
           },
         },
@@ -41,26 +115,15 @@ export async function GET() {
   } catch (error: any) {
     return NextResponse.json(
       {
-        status: 'error',
+        status: 'unexpected_error',
         message: error?.message || 'Unknown error',
         errorType: error?.name || 'Error',
-        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
+        stack: error?.stack,
         details: {
           hasSecret: !!process.env.PAYLOAD_SECRET,
           hasDatabaseUri: !!process.env.DATABASE_URI,
-          databaseUriPreview: process.env.DATABASE_URI
-            ? `${process.env.DATABASE_URI.substring(0, 20)}...`
-            : 'not set',
           nodeEnv: process.env.NODE_ENV,
         },
-        commonIssues: [
-          'Database connection string is invalid',
-          'Database server is not accessible',
-          'Database does not exist',
-          'Database credentials are incorrect',
-          'Network/firewall blocking connection',
-          'Payload config has an error',
-        ],
       },
       { status: 500 },
     )
