@@ -20,28 +20,22 @@ export async function GET() {
       )
     }
 
-    // Step 2: Try to import config (try both alias and direct path)
+    // Step 2: Try to import config
     let config
     try {
-      // Try alias first
+      // Use the configured alias
       config = await import('@payload-config')
-    } catch (aliasError: any) {
-      try {
-        // Try direct path as fallback
-        config = await import('../../payload.config')
-      } catch (directError: any) {
-        return NextResponse.json(
-          {
-            status: 'config_import_error',
-            message: 'Failed to import Payload config',
-            aliasError: aliasError?.message,
-            directError: directError?.message,
-            aliasStack: aliasError?.stack,
-            directStack: directError?.stack,
-          },
-          { status: 500 },
-        )
-      }
+    } catch (configError: any) {
+      return NextResponse.json(
+        {
+          status: 'config_import_error',
+          message: 'Failed to import Payload config',
+          error: configError?.message || 'Unknown error',
+          errorName: configError?.name,
+          stack: configError?.stack,
+        },
+        { status: 500 },
+      )
     }
 
     // Step 3: Try to get the config (it might be a promise or direct export)
