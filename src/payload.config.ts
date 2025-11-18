@@ -22,16 +22,23 @@ const dirname = path.dirname(filename)
 const payloadSecret = process.env.PAYLOAD_SECRET
 const databaseUri = process.env.DATABASE_URI
 
+// Throw errors in development, but log warnings in production
 if (!payloadSecret) {
-  console.error(
-    '⚠️  PAYLOAD_SECRET environment variable is missing. Please set it in your Vercel environment variables.',
-  )
+  const errorMsg =
+    '⚠️  PAYLOAD_SECRET environment variable is missing. Please set it in your Vercel environment variables.'
+  if (process.env.NODE_ENV === 'development') {
+    throw new Error(errorMsg)
+  }
+  console.error(errorMsg)
 }
 
 if (!databaseUri) {
-  console.error(
-    '⚠️  DATABASE_URI environment variable is missing. Please set your PostgreSQL connection string in Vercel environment variables.',
-  )
+  const errorMsg =
+    '⚠️  DATABASE_URI environment variable is missing. Please set your PostgreSQL connection string in Vercel environment variables.'
+  if (process.env.NODE_ENV === 'development') {
+    throw new Error(errorMsg)
+  }
+  console.error(errorMsg)
 }
 
 export default buildConfig({
