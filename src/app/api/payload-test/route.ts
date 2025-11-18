@@ -42,12 +42,12 @@ export async function GET() {
     }
 
     // Step 3: Try to get the config (it might be a promise or direct export)
-    let payloadConfig
+    let payloadConfig: any
     try {
       payloadConfig = config
       // If it's a function/promise, await it
       if (typeof payloadConfig === 'function') {
-        payloadConfig = await payloadConfig()
+        payloadConfig = await (payloadConfig as () => Promise<any>)()
       } else if (payloadConfig instanceof Promise) {
         payloadConfig = await payloadConfig
       }
