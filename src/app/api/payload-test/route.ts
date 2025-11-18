@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 
+// Add runtime config to ensure this runs on the edge
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
+  // Wrap everything in a try-catch to ensure we always return JSON
   try {
     // Step 1: Check environment variables
     const hasSecret = !!process.env.PAYLOAD_SECRET
@@ -64,11 +69,21 @@ export async function GET() {
       )
     }
 
-    // Step 4: Try to initialize Payload
+    // Step 4: Try to initialize Payload with timeout
     let payload
     try {
       const { getPayload } = await import('payload')
-      payload = await getPayload({ config: payloadConfig })
+
+      // Add timeout to prevent hanging
+      const initPromise = getPayload({ config: payloadConfig })
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Payload initialization timeout after 30 seconds')),
+          30000,
+        ),
+      )
+
+      payload = (await Promise.race([initPromise, timeoutPromise])) as any
     } catch (payloadError: any) {
       // Extract more detailed error information
       const errorDetails: any = {
@@ -146,21 +161,25 @@ export async function GET() {
       collections: payloadConfig.collections?.map((c: any) => c.slug) || [],
     })
   } catch (error: any) {
-    // Catch any unexpected errors
-    return NextResponse.json(
-      {
-        status: 'unexpected_error',
-        message: String(error?.message || 'Unknown error'),
-        errorType: error?.name || 'Error',
-        errorCode: error?.code,
-        stack: String(error?.stack || 'No stack trace'),
-        details: {
-          hasSecret: !!process.env.PAYLOAD_SECRET,
-          hasDatabaseUri: !!process.env.DATABASE_URI,
-          nodeEnv: process.env.NODE_ENV,
-        },
+    // Catch any unexpected errors - ensure we always return JSON
+    const errorResponse = {
+      status: 'unexpected_error',
+      message: String(error?.message || 'Unknown error'),
+      errorType: error?.name || 'Error',
+      errorCode: error?.code,
+      stack:
+        process.env.NODE_ENV === 'production'
+          ? undefined
+          : String(error?.stack || 'No stack trace'),
+      details: {
+        hasSecret: !!process.env.PAYLOAD_SECRET,
+        hasDatabaseUri: !!process.env.DATABASE_URI,
+        nodeEnv: process.env.NODE_ENV,
+        timestamp: new Date().toISOString(),
       },
-      { status: 500 },
-    )
+    }
+
+    console.error('Payload test error:', error)
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }
