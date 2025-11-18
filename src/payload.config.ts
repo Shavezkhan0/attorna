@@ -18,6 +18,22 @@ import { SiteGlobals } from './globals/SiteGlobals'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+// Validate required environment variables
+const payloadSecret = process.env.PAYLOAD_SECRET
+const databaseUri = process.env.DATABASE_URI
+
+if (!payloadSecret) {
+  console.error(
+    '⚠️  PAYLOAD_SECRET environment variable is missing. Please set it in your Vercel environment variables.',
+  )
+}
+
+if (!databaseUri) {
+  console.error(
+    '⚠️  DATABASE_URI environment variable is missing. Please set your PostgreSQL connection string in Vercel environment variables.',
+  )
+}
+
 export default buildConfig({
   admin: {
     user: Users.slug,
@@ -36,13 +52,13 @@ export default buildConfig({
   ],
   globals: [SiteGlobals],
   editor: lexicalEditor(),
-  secret: process.env.PAYLOAD_SECRET || '',
+  secret: payloadSecret || '',
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   db: postgresAdapter({
     pool: {
-      connectionString: process.env.DATABASE_URI || '',
+      connectionString: databaseUri || '',
     },
   }),
   sharp,
