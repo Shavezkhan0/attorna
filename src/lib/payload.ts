@@ -31,25 +31,50 @@ export interface PayloadBlogPost {
  */
 export async function getBlogPosts(): Promise<PayloadBlogPost[]> {
   try {
-    const response = await fetch(
-      `${API_URL}/api/blog-posts?where[status][equals]=published&limit=100&depth=2&sort=-publishedAt`,
-      {
+    const apiUrl = `${API_URL}/api/blog-posts?where[status][equals]=published&limit=100&depth=2&sort=-publishedAt`
+    console.log('Fetching blog posts from:', apiUrl)
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store', // Always fetch fresh data
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`Failed to fetch blog posts: ${response.status} ${response.statusText}`, errorText)
+      throw new Error(`Failed to fetch blog posts: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('Blog posts fetched:', data.docs?.length || 0, 'posts')
+    return data.docs || []
+  } catch (error) {
+    console.error('Error fetching blog posts:', error)
+    // Try fetching without status filter to see if posts exist
+    try {
+      const fallbackUrl = `${API_URL}/api/blog-posts?limit=100&depth=2&sort=-publishedAt`
+      console.log('Trying fallback fetch (all posts):', fallbackUrl)
+      const fallbackResponse = await fetch(fallbackUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        cache: 'no-store', // Always fetch fresh data
-      },
-    )
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch blog posts: ${response.statusText}`)
+        cache: 'no-store',
+      })
+      
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json()
+        console.log('Fallback fetch successful:', fallbackData.docs?.length || 0, 'posts (may include drafts)')
+        // Return only published posts from fallback
+        return (fallbackData.docs || []).filter((post: PayloadBlogPost) => post.status === 'published')
+      }
+    } catch (fallbackError) {
+      console.error('Fallback fetch also failed:', fallbackError)
     }
-
-    const data = await response.json()
-    return data.docs || []
-  } catch (error) {
-    console.error('Error fetching blog posts:', error)
+    
     return []
   }
 }
