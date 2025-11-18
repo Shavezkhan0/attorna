@@ -24,15 +24,18 @@ export async function GET() {
     let config
     try {
       // Use the configured alias
-      config = await import('@payload-config')
+      const configModule = await import('@payload-config')
+      config = configModule.default || configModule
     } catch (configError: any) {
       return NextResponse.json(
         {
           status: 'config_import_error',
           message: 'Failed to import Payload config',
-          error: configError?.message || 'Unknown error',
-          errorName: configError?.name,
-          stack: configError?.stack,
+          error: String(configError?.message || 'Unknown error'),
+          errorName: configError?.name || 'Error',
+          errorCode: configError?.code,
+          stack: String(configError?.stack || 'No stack trace'),
+          cause: configError?.cause ? String(configError.cause) : undefined,
         },
         { status: 500 },
       )
@@ -41,9 +44,11 @@ export async function GET() {
     // Step 3: Try to get the config (it might be a promise or direct export)
     let payloadConfig
     try {
-      payloadConfig = config.default || config
+      payloadConfig = config
       // If it's a function/promise, await it
-      if (typeof payloadConfig === 'function' || payloadConfig instanceof Promise) {
+      if (typeof payloadConfig === 'function') {
+        payloadConfig = await payloadConfig()
+      } else if (payloadConfig instanceof Promise) {
         payloadConfig = await payloadConfig
       }
     } catch (configError: any) {
@@ -51,8 +56,9 @@ export async function GET() {
         {
           status: 'config_error',
           message: 'Failed to resolve Payload config',
-          error: configError?.message || 'Unknown error',
-          stack: configError?.stack,
+          error: String(configError?.message || 'Unknown error'),
+          errorName: configError?.name || 'Error',
+          stack: String(configError?.stack || 'No stack trace'),
         },
         { status: 500 },
       )
@@ -64,20 +70,45 @@ export async function GET() {
       const { getPayload } = await import('payload')
       payload = await getPayload({ config: payloadConfig })
     } catch (payloadError: any) {
+      // Extract more detailed error information
+      const errorDetails: any = {
+        hasSecret,
+        hasDatabaseUri,
+        databaseUriPreview: process.env.DATABASE_URI
+          ? `${process.env.DATABASE_URI.substring(0, 30)}...`
+          : 'not set',
+      }
+
+      // Try to extract database-specific error info
+      if (payloadError?.message) {
+        errorDetails.errorMessage = String(payloadError.message)
+      }
+      if (payloadError?.code) {
+        errorDetails.errorCode = payloadError.code
+      }
+      if (payloadError?.errno) {
+        errorDetails.errno = payloadError.errno
+      }
+      if (payloadError?.syscall) {
+        errorDetails.syscall = payloadError.syscall
+      }
+
       return NextResponse.json(
         {
           status: 'payload_init_error',
           message: 'Failed to initialize Payload',
-          error: payloadError?.message || 'Unknown error',
-          errorName: payloadError?.name,
-          stack: payloadError?.stack,
-          details: {
-            hasSecret,
-            hasDatabaseUri,
-            databaseUriPreview: process.env.DATABASE_URI
-              ? `${process.env.DATABASE_URI.substring(0, 30)}...`
-              : 'not set',
-          },
+          error: String(payloadError?.message || 'Unknown error'),
+          errorName: payloadError?.name || 'Error',
+          errorCode: payloadError?.code,
+          stack: String(payloadError?.stack || 'No stack trace'),
+          details: errorDetails,
+          commonCauses: [
+            'Database connection string is invalid',
+            'Database server is not accessible from Vercel',
+            'Database credentials are incorrect',
+            'Database does not exist',
+            'Network timeout or firewall blocking connection',
+          ],
         },
         { status: 500 },
       )
@@ -115,12 +146,14 @@ export async function GET() {
       collections: payloadConfig.collections?.map((c: any) => c.slug) || [],
     })
   } catch (error: any) {
+    // Catch any unexpected errors
     return NextResponse.json(
       {
         status: 'unexpected_error',
-        message: error?.message || 'Unknown error',
+        message: String(error?.message || 'Unknown error'),
         errorType: error?.name || 'Error',
-        stack: error?.stack,
+        errorCode: error?.code,
+        stack: String(error?.stack || 'No stack trace'),
         details: {
           hasSecret: !!process.env.PAYLOAD_SECRET,
           hasDatabaseUri: !!process.env.DATABASE_URI,
